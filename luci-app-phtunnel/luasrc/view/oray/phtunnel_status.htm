@@ -223,11 +223,6 @@ local function main()
 
 	--登录信息查看
 	local login_info_code, url, bind_account = luci.phtunnel.get_login_info()
-     %>
-	<b>bind account: <font color="red"><%=bind_account%></font></b>
-	<a href='#' onclick=log_off()</a></br>
-	<a href='<%=url%>' target=_blank>manager link</a></br>
-	<%
 	if not login_info_code then
 		print("get manager url failed")
 		return 
@@ -248,7 +243,7 @@ local function main()
 	end
      %>
 	<b>bind account: <font color="red"><%=bind_account%></font></b>
-	<a href='#' onclick=log_off()</a>)</br>
+	<a href='#' onclick=log_off()</a></br>
 	<a href='<%=url%>' target=_blank>manager link</a></br>
 	<%
 end
