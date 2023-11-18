@@ -3,7 +3,18 @@
 <%
 require("luci.sys")
 require("luci.model.uci")
+require("luci.http")
+local function write_log(log)
+	luci.sys.exec("logger -t phtunnel_web '" .. string.gsub(log, "'", "") .. "'") --用gsub去掉单引号
+end
 
+local function write_info_log(log)
+	write_log("[info] " .. log)
+end
+
+local function write_err_log(log)
+	write_log("[err] " .. log)
+end
 local uci = luci.model.uci.cursor()
 local log_file = uci:get("phtunnel", "log", "path")
 
@@ -38,6 +49,7 @@ function create_xml_http_request() {
 			}
 		}
 	}
+
 	return xml_http
 }
 
@@ -45,6 +57,7 @@ function get_login_info() {
 	var xml_http = create_xml_http_request()
 	if (!xml_http) {
 		alert('Error : no xml http request')
+
 		return
 	}
 
@@ -64,16 +77,19 @@ function get_login_info() {
 
 function load_qr_img_success_process() {
 	document.getElementById("qrimg").innerHTML = "Scan this Image"
+		
 }
 
 function load_qr_img_failed_process() {
 	document.getElementById("qrimg").innerHTML = "load qrcode image failed"
+		
 }
 
 function log_off() {
 	var xml_http = create_xml_http_request()
 	if (!xml_http) {
 		alert('Error : no xml http request')
+			
 		return
 	}
 
@@ -87,6 +103,7 @@ function log_off() {
 				if (response_json.code == 0) {
 					alert("log off ok")
 					reload_this_page()
+					
 					return
 				}
 				alert("log off failed : " + response_json.error_msg)
@@ -128,7 +145,7 @@ function downloadLogFile() {
 
 </script>
 
-<%
+<%-
 require("luci.phtunnel")
 local utl = require "luci.util"
 
@@ -158,7 +175,9 @@ end
 
 local function display_download_log()
 	if fileExists(log_file) then
-		print('<a href="javascript:void(0)" onclick="downloadLogFile(this)">Download Log File</a><br/>')
+	%>
+		<a href="javascript:void(0)" onclick="downloadLogFile(this)">Download Log File</a><br/>
+		<%
 		grant_download_permission()
 	end
 end
@@ -166,13 +185,21 @@ end
 --输出二
 local function display_qrimage(sn, pwd)
 	local qrcode, qrcodeimg, ttl = luci.phtunnel.get_qrimage(sn, pwd)
+
 	if qrcode and qrcodeimg then
-		print("<img src='" .. qrcodeimg .. "' onload=\"load_qr_img_success_process();setInterval(reload_this_page, " .. ((ttl and ttl or 300) * 1000) .. ")\" onerror=\"load_qr_img_failed_process()\" onabort=\"load_qr_img_failed_process()\" /><div id='qrimg'></div>")
+
+	     %>
+		<img src='<%=qrcodeimg%>' onload="load_qr_img_success_process();setInterval(reload_this_page,((<%=ttl%> and <%=ttl%> or 300) * 1000))" onerror="load_qr_img_failed_process()" onabort="load_qr_img_failed_process()" /><div id='qrimg'></div></br>
+		<p>qrcode:<a href='<%=qrcode%>'><%=qrcode%></a></p></br>
+		<%
+
 	end
 end
 
 local function main()
+
 	local base_info_code, device_sn, device_pwd, device_status, public_ip = luci.phtunnel.get_base_info()
+
 	if not base_info_code then
 		print("phtunnel is not running")
 		return
@@ -183,36 +210,55 @@ local function main()
 		return
 	end
 
+     
 	--输出基本信息
-	print('<b class="oray_lable">SN:</b>' .. (device_sn and device_sn or "no sn") .. "<br/>")
-	print('<b class="oray_lable">Device Status:</b>' .. (device_status and luci.phtunnel.convert_status(device_status) or "no status") .. "<br/>")
-	print('<b class="oray_lable">Public IP:</b>' .. (public_ip and public_ip or "no public ip") .. "<br/>")
+	%>
+	<b class="oray_lable">SN: <%=device_sn%></b> <br/>
+     <b class="oray_lable">PWD: <%=device_pwd%></b> <br/>
+	<b class="oray_lable">Device Status: <%=device_status%> <font color="blue"><%=luci.phtunnel.convert_status(device_status)%></font></b><br/>
+	<b class="oray_lable">Public IP: <%=public_ip%> </b><br/>
+
+
+     <% 
 
 	--登录信息查看
 	local login_info_code, url, bind_account = luci.phtunnel.get_login_info()
+     %>
+	<b>bind account: <font color="red"><%=bind_account%></font></b>
+	<a href='#' onclick=log_off()</a></br>
+	<a href='<%=url%>' target=_blank>manager link</a></br>
+	<%
 	if not login_info_code then
 		print("get manager url failed")
-		return
+		return 
 	end
-
 	if login_info_code ~= 0 then
+
 		print("get manger url failed and code = " .. login_info_code)
+   
 		return
 	end
-
 	if not url or url == "" then
+
 		display_qrimage(device_sn, device_pwd)
-		print("<script type=\"text/javascript\">setInterval(get_login_info, 3000)</script>")
+		%>
+		<script type=\"text/javascript\">setInterval(<%=get_login_info%>, 3000)</script>
+		<%
 		return
 	end
-
-	print("<b>bind account</b>:<font color=red>" .. (bind_account and bind_account or "<b>*</b>") .. "</font>")
-	print("(<a href='#' onclick='log_off();return(false)'>log off</a>)</br>");
-	print("<a href='" .. (url and url or '#') .. "' target=_blank>manager link</a></br>");
+     %>
+	<b>bind account: <font color="red"><%=bind_account%></font></b>
+	<a href='#' onclick=log_off()</a>)</br>
+	<a href='<%=url%>' target=_blank>manager link</a></br>
+	<%
 end
 
 main()
 display_download_log()
-%>
+-%>
+
+
+<b class="oray_lable">日志路径: <%=log_file%></b> <br/>
+
 
 <%+footer%>
